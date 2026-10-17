@@ -1,0 +1,32 @@
+
+# Frontend
+node_modules/
+dist/
+
+# Python Backend
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Environment Variables and Secrets
+.env
+.env.*
+!.env.example
+
+# User Audio Recordings
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.aac
+*.ogg
+*.webm
+
+# Database
+*.db
+*.sqlite3
+
+# Other Files
+.DS_Store
+*.log
