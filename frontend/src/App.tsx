@@ -1,19 +1,33 @@
 
 import { useState, type ChangeEvent } from "react";
+import { uploadAudio, type UploadResponse } from "./services/audioApi";
 
 type Mode = "free" | "compare";
+
+const ALLOWED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg", ".webm"];
+const MAX_FILE_SIZE = 100 * 1024 * 1024;
+const ACCEPTED_AUDIO = ALLOWED_EXTENSIONS.join(",");
 
 function App() {
   const [mode, setMode] = useState<Mode>("free");
   const [singingFile, setSingingFile] = useState<File | null>(null);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [message, setMessage] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [uploadResults, setUploadResults] = useState<{
+    singing: UploadResponse;
+    reference?: UploadResponse;
+  } | null>(null);
 
   function selectMode(selected: Mode) {
+    if (isUploading) return;
     setMode(selected);
     setSingingFile(null);
     setReferenceFile(null);
     setMessage("");
+    setIsError(false);
+    setUploadResults(null);
 
     document.getElementById("studio")?.scrollIntoView({
       behavior: "smooth",
@@ -27,42 +41,71 @@ function App() {
     const file = event.target.files?.[0];
 
     setMessage("");
+    setIsError(false);
+    setUploadResults(null);
+    // Clear the old selection so an invalid replacement is never uploaded.
+    if (type === "singing") setSingingFile(null);
+    else setReferenceFile(null);
 
     if (!file) return;
 
-    if (!file.name.toLowerCase().endsWith(".wav")) {
-      setMessage("Please select a WAV audio file.");
+    const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.includes(extension)) {
+      setMessage("Unsupported format. Select MP3, WAV, M4A, AAC, FLAC, OGG or WebM audio.");
+      setIsError(true);
       event.target.value = "";
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setMessage("File size must be less than 10 MB.");
+    if (file.size === 0 || file.size > MAX_FILE_SIZE) {
+      setMessage("Audio file must be non-empty and at most 100 MB.");
+      setIsError(true);
       event.target.value = "";
       return;
     }
 
-    if (type === "singing") {
-      setSingingFile(file);
-    } else {
-      setReferenceFile(file);
-    }
+    if (type === "singing") setSingingFile(file);
+    else setReferenceFile(file);
   }
 
-  function checkFiles() {
+  async function checkFiles() {
+    if (isUploading) return;
+    setIsError(false);
+    setUploadResults(null);
+
     if (!singingFile) {
       setMessage("Please select your singing recording.");
+      setIsError(true);
       return;
     }
 
     if (mode === "compare" && !referenceFile) {
-      setMessage("Please select a reference recording.");
+      setMessage("Please select a reference vocal recording of the same excerpt.");
+      setIsError(true);
       return;
     }
 
-    setMessage(
-      "Files selected successfully! We will connect AI analysis in the next development stages."
-    );
+    setIsUploading(true);
+    setMessage("Uploading and validating your singing recording...");
+
+    try {
+      const singing = await uploadAudio(singingFile);
+      if (mode === "compare" && referenceFile) {
+        setMessage("Singing file validated. Checking reference recording...");
+        // The current backend endpoint accepts one file per request.
+        const reference = await uploadAudio(referenceFile);
+        setUploadResults({ singing, reference });
+        setMessage("Both recordings passed audio validation. Pitch comparison is not implemented yet.");
+      } else {
+        setUploadResults({ singing });
+        setMessage("Singing recording validated successfully. AI pitch analysis is coming next.");
+      }
+    } catch (error) {
+      setIsError(true);
+      setMessage(error instanceof Error ? error.message : "Audio upload failed. Please retry.");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -246,7 +289,7 @@ function App() {
             </h3>
 
             <p className="mt-2 text-sm text-slate-400">
-              WAV audio only • Maximum 10 MB per file
+              MP3, WAV, M4A, AAC, FLAC, OGG or WebM • Maximum 100 MB and 6 minutes per file
             </p>
 
             <div className="mt-7">
@@ -257,8 +300,9 @@ function App() {
               <input
                 key={`singing-${mode}`}
                 type="file"
-                accept=".wav,audio/wav"
+                accept={ACCEPTED_AUDIO}
                 onChange={(e) => handleFile(e, "singing")}
+                disabled={isUploading}
                 className="block w-full rounded-xl border border-white/10 bg-slate-800 p-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-white"
               />
 
@@ -278,8 +322,9 @@ function App() {
                 <input
                   key="reference"
                   type="file"
-                  accept=".wav,audio/wav"
+                  accept={ACCEPTED_AUDIO}
                   onChange={(e) => handleFile(e, "reference")}
+                  disabled={isUploading}
                   className="block w-full rounded-xl border border-white/10 bg-slate-800 p-4 text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-violet-600 file:px-4 file:py-2 file:text-white"
                 />
 
@@ -293,19 +338,41 @@ function App() {
 
             <button
               onClick={checkFiles}
-              className="mt-8 w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500"
+              disabled={isUploading}
+              className="mt-8 w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Check Selected Files →
+              {isUploading ? "Validating audio..." : "Upload & Validate Audio →"}
             </button>
 
             {message && (
-              <p className="mt-5 rounded-lg bg-slate-800 p-4 text-sm text-slate-200">
+              <p
+                role={isError ? "alert" : "status"}
+                className={`mt-5 rounded-lg border p-4 text-sm ${
+                  isError
+                    ? "border-red-500/30 bg-red-500/10 text-red-200"
+                    : "border-violet-500/20 bg-slate-800 text-slate-200"
+                }`}
+              >
                 {message}
               </p>
             )}
 
+            {uploadResults && (
+              <div className="mt-5 rounded-xl border border-green-500/30 bg-green-500/10 p-5">
+                <h4 className="font-semibold text-green-300">Audio validation results</h4>
+                <p className="mt-2 text-sm text-slate-300">
+                  Your singing: {uploadResults.singing.filename} • {uploadResults.singing.duration_seconds}s • {uploadResults.singing.file_size_mb} MB
+                </p>
+                {uploadResults.reference && (
+                  <p className="mt-2 text-sm text-slate-300">
+                    Reference: {uploadResults.reference.filename} • {uploadResults.reference.duration_seconds}s • {uploadResults.reference.file_size_mb} MB
+                  </p>
+                )}
+              </div>
+            )}
+
             <p className="mt-4 text-center text-xs text-slate-500">
-              AI analysis and backend upload will be connected next.
+              Current stage: backend validates uploaded audio. Pitch analysis and comparison are not implemented yet.
             </p>
 
           </div>
