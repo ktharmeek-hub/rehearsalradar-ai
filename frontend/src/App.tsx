@@ -1,7 +1,8 @@
 
 import { useState, type ChangeEvent } from "react";
-import { analyzeAudio, uploadAudio, type AnalysisResponse, type UploadResponse } from "./services/audioApi";
+import { analyzeAudio, type AnalysisResponse } from "./services/audioApi";
 import PitchResults from "./components/PitchResults";
+import ReferenceComparison from "./components/ReferenceComparison";
 
 type Mode = "free" | "compare";
 
@@ -17,10 +18,7 @@ function App() {
   const [isUploading, setIsUploading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
-  const [uploadResults, setUploadResults] = useState<{
-    singing: UploadResponse;
-    reference?: UploadResponse;
-  } | null>(null);
+  const [referenceAnalysis, setReferenceAnalysis] = useState<AnalysisResponse | null>(null);
 
   function selectMode(selected: Mode) {
     if (isUploading) return;
@@ -29,8 +27,8 @@ function App() {
     setReferenceFile(null);
     setMessage("");
     setIsError(false);
-    setUploadResults(null);
     setAnalysisResult(null);
+    setReferenceAnalysis(null);
 
     document.getElementById("studio")?.scrollIntoView({
       behavior: "smooth",
@@ -45,8 +43,8 @@ function App() {
 
     setMessage("");
     setIsError(false);
-    setUploadResults(null);
     setAnalysisResult(null);
+    setReferenceAnalysis(null);
     // Clear the old selection so an invalid replacement is never uploaded.
     if (type === "singing") setSingingFile(null);
     else setReferenceFile(null);
@@ -75,8 +73,8 @@ function App() {
   async function checkFiles() {
     if (isUploading) return;
     setIsError(false);
-    setUploadResults(null);
     setAnalysisResult(null);
+    setReferenceAnalysis(null);
 
     if (!singingFile) {
       setMessage("Please select your singing recording.");
@@ -94,7 +92,7 @@ function App() {
     setMessage(
       mode === "free"
         ? "Analyzing your singing with AI... This may take a little while on CPU."
-        : "Validating both recordings..."
+        : "Analyzing your singing... The reference will be analyzed next."
     );
 
     try {
@@ -108,12 +106,13 @@ function App() {
             : "Analysis finished, but no reliable pitch was detected. Try a clearer solo vocal recording."
         );
       } else if (referenceFile) {
-        // Comparison is not implemented yet. Validate both files honestly.
-        const singing = await uploadAudio(singingFile);
-        setMessage("Singing file validated. Checking reference recording...");
-        const reference = await uploadAudio(referenceFile);
-        setUploadResults({ singing, reference });
-        setMessage("Both recordings passed validation. Reference pitch comparison is coming next.");
+        // Process sequentially to avoid overloading a laptop's CPU.
+        const singing = await analyzeAudio(singingFile);
+        setMessage("Singing analyzed. Now analyzing the reference vocal...");
+        const reference = await analyzeAudio(referenceFile);
+        setAnalysisResult(singing);
+        setReferenceAnalysis(reference);
+        setMessage("Both recordings analyzed. Compare their pitch contours below.");
       }
     } catch (error) {
       setIsError(true);
@@ -357,8 +356,8 @@ function App() {
               className="mt-8 w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isUploading
-                ? mode === "free" ? "Analyzing with AI..." : "Validating recordings..."
-                : mode === "free" ? "Analyze My Singing →" : "Validate Both Recordings →"}
+                ? mode === "free" ? "Analyzing with AI..." : "Analyzing both recordings..."
+                : mode === "free" ? "Analyze My Singing →" : "Compare Both Recordings →"}
             </button>
 
             {message && (
@@ -374,26 +373,21 @@ function App() {
               </p>
             )}
 
-            {uploadResults && (
-              <div className="mt-5 rounded-xl border border-green-500/30 bg-green-500/10 p-5">
-                <h4 className="font-semibold text-green-300">Audio validation results</h4>
-                <p className="mt-2 text-sm text-slate-300">
-                  Your singing: {uploadResults.singing.filename} • {uploadResults.singing.duration_seconds}s • {uploadResults.singing.file_size_mb} MB
-                </p>
-                {uploadResults.reference && (
-                  <p className="mt-2 text-sm text-slate-300">
-                    Reference: {uploadResults.reference.filename} • {uploadResults.reference.duration_seconds}s • {uploadResults.reference.file_size_mb} MB
-                  </p>
-                )}
-              </div>
+            {mode === "free" && analysisResult && (
+              <PitchResults result={analysisResult} />
             )}
 
-            {analysisResult && <PitchResults result={analysisResult} />}
+            {mode === "compare" && analysisResult && referenceAnalysis && (
+              <ReferenceComparison
+                singing={analysisResult}
+                reference={referenceAnalysis}
+              />
+            )}
 
             <p className="mt-4 text-center text-xs text-slate-500">
               {mode === "free"
                 ? "AI pitch estimates are approximate. Clear solo vocals work best."
-                : "Reference pitch comparison is not implemented yet; this step validates both files."}
+                : "Comparison assumes recordings begin at the same point in the song. Automatic timing alignment is not included yet."}
             </p>
 
           </div>
