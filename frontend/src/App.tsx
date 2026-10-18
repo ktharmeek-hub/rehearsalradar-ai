@@ -1,6 +1,7 @@
 
 import { useState, type ChangeEvent } from "react";
-import { uploadAudio, type UploadResponse } from "./services/audioApi";
+import { analyzeAudio, uploadAudio, type AnalysisResponse, type UploadResponse } from "./services/audioApi";
+import PitchResults from "./components/PitchResults";
 
 type Mode = "free" | "compare";
 
@@ -15,6 +16,7 @@ function App() {
   const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isError, setIsError] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null);
   const [uploadResults, setUploadResults] = useState<{
     singing: UploadResponse;
     reference?: UploadResponse;
@@ -28,6 +30,7 @@ function App() {
     setMessage("");
     setIsError(false);
     setUploadResults(null);
+    setAnalysisResult(null);
 
     document.getElementById("studio")?.scrollIntoView({
       behavior: "smooth",
@@ -43,6 +46,7 @@ function App() {
     setMessage("");
     setIsError(false);
     setUploadResults(null);
+    setAnalysisResult(null);
     // Clear the old selection so an invalid replacement is never uploaded.
     if (type === "singing") setSingingFile(null);
     else setReferenceFile(null);
@@ -72,6 +76,7 @@ function App() {
     if (isUploading) return;
     setIsError(false);
     setUploadResults(null);
+    setAnalysisResult(null);
 
     if (!singingFile) {
       setMessage("Please select your singing recording.");
@@ -86,23 +91,33 @@ function App() {
     }
 
     setIsUploading(true);
-    setMessage("Uploading and validating your singing recording...");
+    setMessage(
+      mode === "free"
+        ? "Analyzing your singing with AI... This may take a little while on CPU."
+        : "Validating both recordings..."
+    );
 
     try {
-      const singing = await uploadAudio(singingFile);
-      if (mode === "compare" && referenceFile) {
+      if (mode === "free") {
+        // This endpoint performs real pitch analysis, not just file validation.
+        const analysis = await analyzeAudio(singingFile);
+        setAnalysisResult(analysis);
+        setMessage(
+          analysis.status === "success"
+            ? "AI pitch analysis completed successfully!"
+            : "Analysis finished, but no reliable pitch was detected. Try a clearer solo vocal recording."
+        );
+      } else if (referenceFile) {
+        // Comparison is not implemented yet. Validate both files honestly.
+        const singing = await uploadAudio(singingFile);
         setMessage("Singing file validated. Checking reference recording...");
-        // The current backend endpoint accepts one file per request.
         const reference = await uploadAudio(referenceFile);
         setUploadResults({ singing, reference });
-        setMessage("Both recordings passed audio validation. Pitch comparison is not implemented yet.");
-      } else {
-        setUploadResults({ singing });
-        setMessage("Singing recording validated successfully. AI pitch analysis is coming next.");
+        setMessage("Both recordings passed validation. Reference pitch comparison is coming next.");
       }
     } catch (error) {
       setIsError(true);
-      setMessage(error instanceof Error ? error.message : "Audio upload failed. Please retry.");
+      setMessage(error instanceof Error ? error.message : "Audio processing failed. Please retry.");
     } finally {
       setIsUploading(false);
     }
@@ -341,7 +356,9 @@ function App() {
               disabled={isUploading}
               className="mt-8 w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isUploading ? "Validating audio..." : "Upload & Validate Audio →"}
+              {isUploading
+                ? mode === "free" ? "Analyzing with AI..." : "Validating recordings..."
+                : mode === "free" ? "Analyze My Singing →" : "Validate Both Recordings →"}
             </button>
 
             {message && (
@@ -371,8 +388,12 @@ function App() {
               </div>
             )}
 
+            {analysisResult && <PitchResults result={analysisResult} />}
+
             <p className="mt-4 text-center text-xs text-slate-500">
-              Current stage: backend validates uploaded audio. Pitch analysis and comparison are not implemented yet.
+              {mode === "free"
+                ? "AI pitch estimates are approximate. Clear solo vocals work best."
+                : "Reference pitch comparison is not implemented yet; this step validates both files."}
             </p>
 
           </div>
