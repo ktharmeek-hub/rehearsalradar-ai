@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import tempfile
+from pitch_analysis import analyze_pitch
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -153,3 +154,127 @@ async def upload_audio(file: UploadFile = File(...)):
 
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+@app.post("/analyze")
+def analyze_audio(file: UploadFile = File(...)):
+
+    filename = Path(file.filename or "").name
+    extension = Path(filename).suffix.lower()
+
+    if extension not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported audio format"
+        )
+
+    temp_path = None
+
+    try:
+        # Save the uploaded audio temporarily
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=extension
+        ) as temp_file:
+
+            temp_path = temp_file.name
+            total_size = 0
+
+            while True:
+                chunk = file.file.read(1024 * 1024)
+
+                if not chunk:
+                    break
+
+                total_size += len(chunk)
+
+                if total_size > MAX_FILE_SIZE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail="File exceeds 100 MB limit"
+                    )
+
+                temp_file.write(chunk)
+
+        # Check audio duration and format
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries",
+                    "format=duration:stream=codec_type",
+                    "-of", "json",
+                    temp_path
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+        except (OSError, subprocess.TimeoutExpired):
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to inspect audio file"
+            )
+
+        if result.returncode != 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid audio file"
+            )
+
+        try:
+            metadata = json.loads(result.stdout)
+
+            stream_types = [
+                stream.get("codec_type")
+                for stream in metadata.get("streams", [])
+            ]
+
+            if "audio" not in stream_types or "video" in stream_types:
+                raise ValueError("Expected audio-only file")
+
+            duration = float(metadata["format"]["duration"])
+
+        except (ValueError, KeyError, TypeError):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot determine valid audio duration"
+            )
+
+        if not (0 < duration <= MAX_DURATION):
+            raise HTTPException(
+                status_code=400,
+                detail="Audio duration must be under 6 minutes"
+            )
+
+        # Run the pretrained AI pitch detection model
+        try:
+            analysis = analyze_pitch(temp_path)
+
+        except (
+            ValueError,
+            subprocess.CalledProcessError,
+            subprocess.TimeoutExpired
+        ) as exc:
+            raise HTTPException(
+                status_code=422,
+                detail="Unable to analyze this audio recording"
+            ) from exc
+
+        return {
+            "filename": filename,
+            "duration_seconds": round(duration, 2),
+            "file_size_mb": round(
+                total_size / (1024 * 1024), 2
+            ),
+            **analysis
+        }
+
+    finally:
+        file.file.close()
+
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
