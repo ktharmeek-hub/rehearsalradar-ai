@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -10,6 +11,7 @@ import {
 } from "recharts";
 
 import type { AnalysisResponse } from "../services/audioApi";
+import { comparePitch } from "../services/pitchComparison";
 
 type Props = {
   singing: AnalysisResponse;
@@ -27,38 +29,61 @@ function displayHz(pitch: number | null): string {
 }
 
 export default function ReferenceComparison({ singing, reference }: Props) {
-  const singingPoints = singing.pitch_contour;
-  const referencePoints = reference.pitch_contour;
-  const maxFrames = Math.max(singingPoints.length, referencePoints.length);
-  const stride = Math.max(1, Math.ceil(maxFrames / 900));
+  const metrics = useMemo(
+    () => comparePitch(singing, reference),
+    [singing, reference]
+  );
 
-  // Both API responses use 10 ms frames starting at time zero.
-  // We compare corresponding timestamps, without automatic alignment.
-  const chartData: ChartPoint[] = [];
-  for (let index = 0; index < maxFrames; index += stride) {
-    chartData.push({
-      time: Math.round(index * 0.01 * 100) / 100,
-      singingHz: singingPoints[index]?.pitch_hz ?? null,
-      referenceHz: referencePoints[index]?.pitch_hz ?? null,
-    });
+  const chartData = useMemo((): ChartPoint[] => {
+    const singerPoints = singing.pitch_contour;
+    const referencePoints = reference.pitch_contour;
+    const stride = Math.max(1, Math.ceil(singerPoints.length / 900));
+    // Positive offset means a later time in the reference corresponds
+    // to the given time in the singing recording.
+    const referenceShiftFrames = Math.round(
+      (metrics?.timeOffsetSeconds ?? 0) * 100
+    );
+    const points: ChartPoint[] = [];
+
+    for (let i = 0; i < singerPoints.length; i += stride) {
+      const refIndex = i + referenceShiftFrames;
+      points.push({
+        time: singerPoints[i].time,
+        singingHz: singerPoints[i].pitch_hz,
+        referenceHz:
+          refIndex >= 0 && refIndex < referencePoints.length
+            ? referencePoints[refIndex].pitch_hz
+            : null,
+      });
+    }
+    return points;
+  }, [singing, reference, metrics]);
+
+  const hasReliablePitch =
+    singing.status === "success" && reference.status === "success";
+
+  let feedback =
+    "Listen to the same short phrase in both recordings, then compare its rising and falling pitch patterns.";
+
+  if (metrics) {
+    const offset = metrics.medianPitchOffsetSemitones;
+    if (Math.abs(offset) >= 1) {
+      feedback = `Your matched voiced sections are generally ${Math.abs(offset).toFixed(2)} semitones ${offset > 0 ? "higher" : "lower"} than the reference. If matching the reference key is your goal, practise the same phrase slowly in that key.`;
+    } else if (metrics.meanPitchDifferenceSemitones > 1) {
+      feedback =
+        "The overall key is fairly close, but some aligned voiced sections differ. Replay short phrases where the violet and cyan lines separate, and practise those phrases individually.";
+    } else {
+      feedback =
+        "The matched vocal pitch patterns appear close in this test. Try another recording of the same excerpt to check whether the pattern is consistent.";
+    }
   }
-
-  const hasBothPitches =
-    singing.median_pitch_hz !== null &&
-    reference.median_pitch_hz !== null &&
-    singing.median_pitch_hz > 0 &&
-    reference.median_pitch_hz > 0;
-
-  const medianOffsetSemitones = hasBothPitches
-    ? 12 * Math.log2(singing.median_pitch_hz! / reference.median_pitch_hz!)
-    : null;
 
   return (
     <div className="mt-8 space-y-6">
       <div>
-        <h3 className="text-2xl font-bold">Reference Pitch Comparison</h3>
+        <h3 className="text-2xl font-bold text-white">Reference Pitch Comparison</h3>
         <p className="mt-2 text-sm text-slate-400">
-          Two vocal recordings analyzed using the same pitch estimation model.
+          Estimated vocal pitches from two recordings, with a small automatic starting-time adjustment.
         </p>
       </div>
 
@@ -79,29 +104,59 @@ export default function ReferenceComparison({ singing, reference }: Props) {
         </div>
       </div>
 
-      {medianOffsetSemitones !== null ? (
-        <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
-          <p className="text-sm text-slate-400">Overall median pitch offset</p>
-          <p className="mt-2 text-2xl font-semibold text-white">
-            {medianOffsetSemitones >= 0 ? "+" : ""}
-            {medianOffsetSemitones.toFixed(2)} semitones
-          </p>
-          <p className="mt-2 text-sm text-slate-400">
-            Positive means your recording's median pitch is higher than the
-            reference's; negative means lower. This is not a note accuracy score.
-          </p>
+      {hasReliablePitch && metrics ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
+            <p className="text-sm text-slate-400">Estimated Time Offset</p>
+            <p className="mt-2 text-2xl font-bold text-white">
+              {metrics.timeOffsetSeconds > 0 ? "+" : ""}
+              {metrics.timeOffsetSeconds.toFixed(2)} s
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Reference playback position relative to your recording (up to ±3 s).
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
+            <p className="text-sm text-slate-400">Matched Voiced Audio (approx.)</p>
+            <p className="mt-2 text-2xl font-bold text-white">
+              {metrics.matchedDurationSeconds.toFixed(1)} s
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Total paired voiced time, not the continuous excerpt length.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
+            <p className="text-sm text-slate-400">Matched Median Pitch Offset</p>
+            <p className="mt-2 text-2xl font-bold text-violet-300">
+              {metrics.medianPitchOffsetSemitones > 0 ? "+" : ""}
+              {metrics.medianPitchOffsetSemitones.toFixed(2)} semitones
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Positive means your detected vocal pitch is higher.
+            </p>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-slate-950 p-5">
+            <p className="text-sm text-slate-400">Mean Absolute Pitch Difference</p>
+            <p className="mt-2 text-2xl font-bold text-white">
+              {metrics.meanPitchDifferenceSemitones.toFixed(2)} semitones
+            </p>
+            <p className="mt-2 text-xs text-slate-400">
+              {metrics.withinOneSemitonePercent.toFixed(1)}% of paired voiced samples are within 1 semitone. Not a singing accuracy score.
+            </p>
+          </div>
         </div>
       ) : (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-          Reliable pitch was not found in one or both recordings. Try clear,
-          solo vocal recordings without instruments.
+          {hasReliablePitch
+            ? "Not enough corresponding voiced audio to estimate a time offset reliably. The graph below uses the original timestamps."
+            : "Reliable pitch was not found in one or both recordings. Try clear solo vocals without instruments."}
         </p>
       )}
 
       <div className="rounded-2xl border border-white/10 bg-slate-950 p-5 sm:p-6">
-        <h4 className="text-xl font-semibold">Pitch Contours — Side by Side</h4>
+        <h4 className="text-xl font-semibold text-white">Aligned Pitch Contours</h4>
         <p className="mt-2 text-sm text-slate-400">
-          Violet: your singing. Cyan: reference. Gaps mark uncertain or silent audio.
+          Violet: your singing. Cyan: reference. Gaps are silent or uncertain regions.
         </p>
         <div className="mt-6 h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -150,17 +205,15 @@ export default function ReferenceComparison({ singing, reference }: Props) {
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <p className="mt-4 text-xs text-slate-500">
+          Alignment assumes the same song excerpt at approximately the same tempo. It does not correct for tempo changes or prove whether individual notes were sung correctly.
+        </p>
       </div>
 
       <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 p-5">
-        <h4 className="font-semibold text-violet-300">How to use this comparison</h4>
+        <h4 className="font-semibold text-violet-300">Practice Insight</h4>
         <p className="mt-2 text-sm leading-relaxed text-slate-300">
-          Upload two clean vocal recordings of the same excerpt, starting at
-          approximately the same moment and sung in the same key. Compare the
-          upward and downward movements in the two curves. This version does
-          not automatically align timing, isolate vocals from music, or grade
-          individual notes. A difference in curves does not by itself prove
-          incorrect singing.
+          {feedback}
         </p>
       </div>
     </div>

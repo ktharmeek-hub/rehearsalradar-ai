@@ -387,7 +387,7 @@ function App() {
             <p className="mt-4 text-center text-xs text-slate-500">
               {mode === "free"
                 ? "AI pitch estimates are approximate. Clear solo vocals work best."
-                : "Comparison assumes recordings begin at the same point in the song. Automatic timing alignment is not included yet."}
+                : "Basic alignment adjusts starting-time offsets up to 3 seconds; use the same excerpt at a similar tempo."}
             </p>
 
           </div>
