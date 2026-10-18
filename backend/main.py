@@ -8,6 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from history import router as history_router
 
 app = FastAPI(title="RehearsalRadar AI")
 
@@ -20,6 +21,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(history_router)
 
 ALLOWED_EXTENSIONS = {
     ".mp3", ".wav", ".m4a", ".aac",
