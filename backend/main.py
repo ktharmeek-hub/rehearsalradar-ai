@@ -281,3 +281,9 @@ def analyze_audio(file: UploadFile = File(...)):
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
 
+from karaoke import router as karaoke_router
+app.include_router(karaoke_router)
+
+# Local-only human-reviewed ML dataset collection. Never expose unauthenticated online.
+from ml_feedback import router as ml_feedback_router
+app.include_router(ml_feedback_router)
