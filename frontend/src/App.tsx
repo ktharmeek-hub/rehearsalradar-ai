@@ -6,6 +6,8 @@ import ReferenceComparison from "./components/ReferenceComparison";
 import AudioPreview from "./components/AudioPreview";
 import AnalysisHistory from "./components/AnalysisHistory";
 import { saveHistory } from "./services/historyApi";
+import KaraokeMaker from "./components/KaraokeMaker";
+import PracticeCoach from "./components/PracticeCoach";
 
 type Mode = "free" | "compare";
 
@@ -482,6 +484,14 @@ function App() {
             )}
 
             {analysisResult && (mode === "free" || referenceAnalysis) && (
+              <PracticeCoach
+                key={mode + "-" + analysisResult.filename + "-" + (referenceAnalysis?.filename ?? "")}
+                analysis={analysisResult}
+                reference={mode === "compare" ? referenceAnalysis : null}
+              />
+            )}
+
+            {analysisResult && (mode === "free" || referenceAnalysis) && (
               <div className="mt-5 flex flex-wrap justify-end">
                 <button
                   type="button"
@@ -503,6 +513,12 @@ function App() {
         </div>
       </section>
 
+
+
+            {/* Karaoke Studio */}
+      <KaraokeMaker />
+
+      {/* Analysis History — last main section */}
       <AnalysisHistory refreshKey={historyRevision} />
 
       {/* Footer */}
