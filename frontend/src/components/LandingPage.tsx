@@ -4,6 +4,7 @@ import './LandingPage.css'
 type LandingPageProps = {
   onGetStarted: () => void
   onRegister: () => void
+  onLogin: () => void
 }
 
 const features = [
@@ -48,6 +49,7 @@ const features = [
 export default function LandingPage({
   onGetStarted,
   onRegister,
+  onLogin,
 }: LandingPageProps) {
   return (
     <div className="rr-landing">
@@ -62,11 +64,10 @@ export default function LandingPage({
 
           <button
             className="rr-button rr-secondary"
-            disabled
-            title="Login coming soon"
+            onClick={onLogin}
           >
             Login
-          </button>
+           </button>
 
           <button
           className="rr-button rr-secondary"

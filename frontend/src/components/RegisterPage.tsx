@@ -6,9 +6,12 @@ import './RegisterPage.css'
 
 type Props = {
   onBack: () => void
+  onLogin: () => void
 }
-
-export default function RegisterPage({ onBack }: Props) {
+export default function RegisterPage({
+  onBack,
+  onLogin,
+}: Props) {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -143,8 +146,21 @@ export default function RegisterPage({ onBack }: Props) {
         </form>
 
         <p className="rr-register-note">
-          Already have an account? Login is coming on Day 3.
-        </p>
+  Already have an account?{' '}
+  <button
+    type="button"
+    onClick={onLogin}
+    style={{
+      background: 'transparent',
+      border: 'none',
+      color: '#c4b5fd',
+      cursor: 'pointer',
+      fontWeight: 600,
+    }}
+  >
+    Login
+  </button>
+</p>
       </div>
     </main>
   )
