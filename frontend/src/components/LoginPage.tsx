@@ -20,10 +20,14 @@ export default function LoginPage({
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resetMessage, setResetMessage] = useState('')
 
+  // Login using Supabase Authentication
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
     setError('')
+    setResetMessage('')
 
     const cleanEmail = email.trim().toLowerCase()
 
@@ -60,9 +64,52 @@ export default function LoginPage({
     }
   }
 
+  // Send a password recovery email
+  async function handleForgotPassword() {
+    const userEmail = email.trim().toLowerCase()
+
+    setError('')
+    setResetMessage('')
+
+    if (!userEmail) {
+      setError('Please enter your registered email first.')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+      setError('Please enter a valid email address.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const { error: resetError } =
+        await supabase.auth.resetPasswordForEmail(userEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        })
+
+      if (resetError) {
+        setError(resetError.message)
+        return
+      }
+
+      setResetMessage(
+        'If an account exists for this email, check your inbox for a password reset link.'
+      )
+    } catch {
+      setError(
+        'Unable to send the password reset request. Please try again.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <main className="rr-login-page">
       <section className="rr-login-card">
+
         <button
           type="button"
           className="rr-login-back"
@@ -72,12 +119,18 @@ export default function LoginPage({
         </button>
 
         <h1>Welcome Back!</h1>
+
         <p className="rr-login-description">
           Login to continue your singing journey.
         </p>
 
         <form onSubmit={handleLogin}>
-          <label htmlFor="login-email">Email Address</label>
+
+          {/* Email field */}
+          <label htmlFor="login-email">
+            Email Address
+          </label>
+
           <input
             id="login-email"
             type="email"
@@ -88,7 +141,11 @@ export default function LoginPage({
             required
           />
 
-          <label htmlFor="login-password">Password</label>
+          {/* Password field */}
+          <label htmlFor="login-password">
+            Password
+          </label>
+
           <input
             id="login-password"
             type="password"
@@ -99,12 +156,54 @@ export default function LoginPage({
             required
           />
 
+          {/* Forgot Password button */}
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={loading}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#c4b5fd',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              textAlign: 'right',
+              padding: '8px 0',
+              fontSize: '14px',
+              alignSelf: 'flex-end',
+            }}
+          >
+            Forgot Password?
+          </button>
+
+          {/* Error message */}
           {error && (
-            <div className="rr-login-error" role="alert">
+            <div
+              className="rr-login-error"
+              role="alert"
+            >
               {error}
             </div>
           )}
 
+          {/* Password reset request message */}
+          {resetMessage && (
+            <div
+              role="status"
+              style={{
+                padding: '12px',
+                borderRadius: '10px',
+                background: '#14532d55',
+                color: '#bbf7d0',
+                border: '1px solid #22c55e',
+                fontSize: '14px',
+                lineHeight: '1.5',
+              }}
+            >
+              {resetMessage}
+            </div>
+          )}
+
+          {/* Login button */}
           <button
             type="submit"
             className="rr-login-submit"
@@ -112,10 +211,12 @@ export default function LoginPage({
           >
             {loading ? 'Logging In...' : 'Login'}
           </button>
+
         </form>
 
         <p className="rr-login-footer">
           Don't have an account?{' '}
+
           <button
             type="button"
             onClick={onRegister}
@@ -123,6 +224,7 @@ export default function LoginPage({
             Create Free Account
           </button>
         </p>
+
       </section>
     </main>
   )
