@@ -1,0 +1,221 @@
+
+.rr-dashboard {
+  min-height: 100vh;
+  background: #090e1d;
+  color: #f8fafc;
+  font-family: Arial, sans-serif;
+}
+
+.rr-dashboard * {
+  box-sizing: border-box;
+}
+
+.rr-dashboard-header {
+  max-width: 1250px;
+  margin: auto;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.rr-dashboard-brand {
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.rr-dashboard-brand span {
+  color: #a78bfa;
+}
+
+.rr-dashboard-nav {
+  display: flex;
+  gap: 12px;
+}
+
+.rr-dashboard-nav button {
+  padding: 11px 18px;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  background: transparent;
+  color: #e2e8f0;
+  cursor: pointer;
+}
+
+.rr-dashboard-nav .rr-dashboard-logout {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  color: white;
+}
+
+.rr-dashboard-container {
+  max-width: 1150px;
+  margin: auto;
+  padding: 25px 24px 70px;
+}
+
+.rr-dashboard-hero {
+  padding: 65px 45px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at right top, #6d28d955, transparent 60%),
+    linear-gradient(135deg, #1e1640, #111a2d);
+  border: 1px solid #51358b;
+}
+
+.rr-dashboard-eyebrow {
+  font-size: 12px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: #c4b5fd;
+}
+
+.rr-dashboard-hero h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  margin: 20px 0;
+  line-height: 1.2;
+}
+
+.rr-dashboard-hero p {
+  color: #cbd5e1;
+  line-height: 1.7;
+  max-width: 600px;
+}
+
+.rr-dashboard-primary {
+  margin-top: 22px;
+  padding: 15px 23px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rr-dashboard-account,
+.rr-dashboard-tools {
+  margin-top: 55px;
+}
+
+.rr-dashboard-section-heading h2 {
+  font-size: 28px;
+  margin: 0 0 9px;
+}
+
+.rr-dashboard-section-heading p {
+  color: #94a3b8;
+  margin: 0 0 25px;
+}
+
+.rr-dashboard-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.rr-dashboard-info,
+.rr-dashboard-tool-card {
+  background: #111a2d;
+  border: 1px solid #263249;
+  border-radius: 16px;
+  padding: 25px;
+}
+
+.rr-dashboard-info span {
+  display: block;
+  color: #94a3b8;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.rr-dashboard-info strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+}
+
+.rr-dashboard-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.rr-dashboard-tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.rr-dashboard-icon {
+  font-size: 32px;
+}
+
+.rr-dashboard-tool-card h3 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.rr-dashboard-tool-card p {
+  color: #94a3b8;
+  line-height: 1.7;
+  font-size: 14px;
+  flex: 1;
+}
+
+.rr-dashboard-tool-card button {
+  background: #7c3aed22;
+  border: 1px solid #8b5cf6;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: left;
+  color: #ddd6fe;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rr-dashboard-tool-card button:hover {
+  background: #7c3aed44;
+}
+
+.rr-dashboard-note {
+  margin-top: 45px;
+  padding: 25px;
+  border-radius: 16px;
+  background: #161e32;
+  border: 1px solid #334155;
+}
+
+.rr-dashboard-note h2 {
+  font-size: 21px;
+  margin-bottom: 12px;
+}
+
+.rr-dashboard-note p {
+  color: #94a3b8;
+  line-height: 1.7;
+}
+
+.rr-dashboard-footer {
+  padding: 30px 15px;
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .rr-dashboard-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .rr-dashboard-hero {
+    padding: 38px 24px;
+  }
+
+  .rr-dashboard-account-grid,
+  .rr-dashboard-tool-grid {
+    grid-template-columns: 1fr;
+  }
+}

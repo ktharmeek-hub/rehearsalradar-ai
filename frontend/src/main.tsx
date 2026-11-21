@@ -2,7 +2,6 @@
 import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import type { User } from '@supabase/supabase-js'
-import ResetPasswordPage from './components/ResetPasswordPage'
 
 import {
   BrowserRouter,
@@ -10,6 +9,7 @@ import {
   Route,
   Routes,
   useNavigate,
+  useLocation,
 } from 'react-router'
 
 import './index.css'
@@ -18,10 +18,13 @@ import App from './App.tsx'
 import LandingPage from './components/LandingPage'
 import RegisterPage from './components/RegisterPage'
 import LoginPage from './components/LoginPage'
+import ResetPasswordPage from './components/ResetPasswordPage'
+import DashboardPage from './components/DashboardPage'
 import { supabase } from './services/supabaseClient'
 
 function Root() {
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [user, setUser] = useState<User | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -73,12 +76,46 @@ function Root() {
     }
   }, [])
 
+  // Scroll to the selected singing tool after navigation.
+  useEffect(() => {
+    if (
+      checkingAuth ||
+      !user ||
+      location.pathname !== '/app' ||
+      !location.hash
+    ) {
+      return
+    }
+
+    const sectionId = location.hash.slice(1)
+
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById(sectionId)
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        })
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [
+    checkingAuth,
+    user,
+    location.pathname,
+    location.hash,
+  ])
+
+  // Open the personal dashboard after successful login.
   function handleLoginSuccess(signedInUser: User) {
     setUser(signedInUser)
-    navigate('/app', { replace: true })
+    navigate('/dashboard', { replace: true })
   }
 
+  // Logout functionality.
   async function handleLogout() {
+    if (loggingOut) return
+
     setLogoutError('')
     setLoggingOut(true)
 
@@ -88,9 +125,8 @@ function Root() {
       })
 
       if (error) {
-        // A local sign-out may clear the device session
-        // even if server-side token revocation fails.
-        console.warn('Sign-out warning:', error.message)
+        setLogoutError(error.message)
+        return
       }
 
       setUser(null)
@@ -104,28 +140,36 @@ function Root() {
     }
   }
 
-  // Prevent protected content flashing before auth check.
+  // Wait until authentication checking is complete.
   if (checkingAuth) {
     return (
-      <main style={{
-        minHeight: '100vh',
-        display: 'grid',
-        placeItems: 'center',
-        background: '#090e1d',
-        color: '#ffffff',
-        fontFamily: 'Arial, sans-serif',
-      }}>
-        <p role="status">Checking your login session...</p>
+      <main
+        style={{
+          minHeight: '100vh',
+          display: 'grid',
+          placeItems: 'center',
+          background: '#090e1d',
+          color: '#ffffff',
+          fontFamily: 'Arial, sans-serif',
+        }}
+      >
+        <p role="status">
+          Checking your login session...
+        </p>
       </main>
     )
   }
 
   return (
     <Routes>
+
+      {/* Reset Password Page */}
       <Route
-  path="/reset-password"
-  element={<ResetPasswordPage />}
-/>
+        path="/reset-password"
+        element={<ResetPasswordPage />}
+      />
+
+      {/* Public Landing Page */}
       <Route
         path="/"
         element={
@@ -133,17 +177,18 @@ function Root() {
             onLogin={() => navigate('/login')}
             onRegister={() => navigate('/register')}
             onGetStarted={() =>
-              navigate(user ? '/app' : '/login')
+              navigate(user ? '/dashboard' : '/login')
             }
           />
         }
       />
 
+      {/* Registration Page */}
       <Route
         path="/register"
         element={
           user ? (
-            <Navigate to="/app" replace />
+            <Navigate to="/dashboard" replace />
           ) : (
             <RegisterPage
               onBack={() => navigate('/')}
@@ -153,11 +198,12 @@ function Root() {
         }
       />
 
+      {/* Login Page */}
       <Route
         path="/login"
         element={
           user ? (
-            <Navigate to="/app" replace />
+            <Navigate to="/dashboard" replace />
           ) : (
             <LoginPage
               onBack={() => navigate('/')}
@@ -168,39 +214,107 @@ function Root() {
         }
       />
 
+      {/* Protected Personal Dashboard */}
+      <Route
+        path="/dashboard"
+        element={
+          user ? (
+            <>
+              {logoutError && (
+                <p
+                  role="alert"
+                  style={{
+                    padding: '12px',
+                    background: '#7f1d1d',
+                    color: '#ffffff',
+                  }}
+                >
+                  {logoutError}
+                </p>
+              )}
+
+              <DashboardPage
+                user={user}
+                onHome={() => navigate('/')}
+                onLogout={handleLogout}
+                onOpenSection={(section) =>
+                  navigate(`/app#${section}`)
+                }
+              />
+            </>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      {/* Protected Singing Application */}
       <Route
         path="/app"
         element={
           user ? (
             <>
-              <header style={{
-                padding: '12px 22px',
-                background: '#111a2d',
-                color: '#ffffff',
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-              }}>
+              <header
+                style={{
+                  padding: '12px 22px',
+                  background: '#111a2d',
+                  color: '#ffffff',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                }}
+              >
                 <div>
                   <strong>RehearsalRadar AI</strong>
+
                   <div style={{ fontSize: '13px' }}>
                     Signed in as {user.email}
                   </div>
                 </div>
 
-                <div style={{
-                  display: 'flex',
-                  gap: '10px',
-                }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '10px',
+                  }}
+                >
+
+                  {/* Dashboard Button - Correct Location */}
+                  <button
+                    type="button"
+                    onClick={() => navigate('/dashboard')}
+                    style={{
+                      padding: '9px 16px',
+                      background: '#334155',
+                      color: '#ffffff',
+                      border: 0,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Dashboard
+                  </button>
+
+                  {/* Home Button */}
                   <button
                     type="button"
                     onClick={() => navigate('/')}
+                    style={{
+                      padding: '9px 16px',
+                      background: '#334155',
+                      color: '#ffffff',
+                      border: 0,
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
                   >
                     Home
                   </button>
 
+                  {/* Logout Button */}
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -216,6 +330,7 @@ function Root() {
                   >
                     {loggingOut ? 'Logging out...' : 'Logout'}
                   </button>
+
                 </div>
 
                 {logoutError && (
@@ -231,10 +346,12 @@ function Root() {
         }
       />
 
+      {/* Redirect unknown URLs to Home */}
       <Route
         path="*"
         element={<Navigate to="/" replace />}
       />
+
     </Routes>
   )
 }
