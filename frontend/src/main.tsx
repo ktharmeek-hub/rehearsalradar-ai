@@ -20,6 +20,7 @@ import RegisterPage from './components/RegisterPage'
 import LoginPage from './components/LoginPage'
 import ResetPasswordPage from './components/ResetPasswordPage'
 import DashboardPage from './components/DashboardPage'
+import ProfilePage from './components/ProfilePage'
 import { supabase } from './services/supabaseClient'
 
 function Root() {
@@ -234,19 +235,40 @@ function Root() {
               )}
 
               <DashboardPage
-                user={user}
-                onHome={() => navigate('/')}
-                onLogout={handleLogout}
-                onOpenSection={(section) =>
-                  navigate(`/app#${section}`)
-                }
-              />
+  user={user}
+  onHome={() => navigate('/')}
+  onProfile={() => navigate('/profile')}
+  onLogout={handleLogout}
+  onOpenSection={(section) =>
+    navigate(`/app#${section}`)
+  }
+/>
             </>
           ) : (
             <Navigate to="/login" replace />
           )
         }
       />
+
+
+      {/* Protected Profile Page */}
+      <Route
+        path="/profile"
+        element={
+          user ? (
+            <ProfilePage
+              user={user}
+              onBack={() => navigate('/dashboard')}
+              onUpdated={(updatedUser) => {
+                setUser(updatedUser)
+              }}
+            />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
 
       {/* Protected Singing Application */}
       <Route

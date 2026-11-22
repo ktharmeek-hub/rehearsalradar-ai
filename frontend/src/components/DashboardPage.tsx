@@ -7,6 +7,7 @@ type Section = 'studio' | 'karaoke-maker' | 'history'
 type DashboardPageProps = {
   user: User
   onHome: () => void
+  onProfile: () => void
   onLogout: () => void
   onOpenSection: (section: Section) => void
 }
@@ -47,6 +48,7 @@ const tools: {
 export default function DashboardPage({
   user,
   onHome,
+  onProfile,
   onLogout,
   onOpenSection,
 }: DashboardPageProps) {
@@ -77,18 +79,22 @@ export default function DashboardPage({
         </div>
 
         <div className="rr-dashboard-nav">
-          <button type="button" onClick={onHome}>
-            Home
-          </button>
+  <button type="button" onClick={onHome}>
+    Home
+  </button>
 
-          <button
-            type="button"
-            className="rr-dashboard-logout"
-            onClick={onLogout}
-          >
-            Logout
-          </button>
-        </div>
+  <button type="button" onClick={onProfile}>
+    My Profile
+  </button>
+
+  <button
+    type="button"
+    className="rr-dashboard-logout"
+    onClick={onLogout}
+  >
+    Logout
+  </button>
+</div>
       </header>
 
       <div className="rr-dashboard-container">
