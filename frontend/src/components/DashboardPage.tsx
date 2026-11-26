@@ -38,9 +38,8 @@ const tools: {
   {
     icon: '📊',
     title: 'Analysis History',
-    description:
-      'Review saved local analyses. Private history is coming later.',
-    action: 'View Local History',
+    description: 'Review your personal saved singing analyses.',
+action: 'View Personal History',
     section: 'history',
   },
 ]
