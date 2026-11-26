@@ -68,8 +68,9 @@ export default function AnalysisHistory({ refreshKey }: Props) {
       <div className="mx-auto max-w-4xl">
         <h2 className="text-center text-2xl font-bold sm:text-3xl">Analysis History</h2>
         <p className="mx-auto mt-3 max-w-2xl text-center text-sm leading-relaxed text-slate-400">
-          Revisit past pitch results and graphs. Results are saved in SQLite on this local backend;
-          uploaded audio files are not stored.
+          Revisit your personal pitch results and graphs.
+Analyses are saved to your Supabase account.
+Uploaded audio recordings are not stored in history.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
