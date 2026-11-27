@@ -1,6 +1,7 @@
 
 import type { User } from '@supabase/supabase-js'
 import './DashboardPage.css'
+import SingingProgressTracker from './SingingProgressTracker'
 
 type Section = 'studio' | 'karaoke-maker' | 'history'
 
@@ -177,14 +178,7 @@ export default function DashboardPage({
           </div>
         </section>
 
-        <section className="rr-dashboard-note">
-          <h2>Your singing journey starts here</h2>
-          <p>
-            Personalized practice statistics and private
-            analysis history will become available after
-            secure per-user data storage is implemented.
-          </p>
-        </section>
+        <SingingProgressTracker />
       </div>
 
       <footer className="rr-dashboard-footer">
